@@ -1,50 +1,31 @@
 package main
 
 import (
-	"finance-tracker/handlers"
-	"finance-tracker/storage"
-	"log"
-	"net/http"
+    "finance-tracker/handlers"
+    "finance-tracker/middleware"
+    "finance-tracker/storage"
+    "log"
+    "net/http"
 )
 
 func main() {
-	// Initialize the database
-	if err := storage.InitializeDB(); err != nil {
-		log.Fatalf("Could not initialize database: %v", err)
-	}
+    // Initialize the database
+    if err := storage.InitializeDB(); err != nil {
+        log.Fatalf("Could not initialize database: %v", err)
+    }
 
-	// Set up HTTP routes
-	http.HandleFunc("/expenses", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			handlers.AddExpense(w, r)
-		case http.MethodGet:
-			handlers.GetExpenses(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+    // Set up HTTP routes
+    http.HandleFunc("/register", handlers.Register)
+    http.HandleFunc("/login", handlers.Login)
 
-	http.HandleFunc("/categories", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			handlers.AddCategory(w, r)
-		case http.MethodGet:
-			handlers.GetCategories(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+    // Protected routes
+    protected := http.NewServeMux()
+    protected.HandleFunc("/expenses", handlers.HandleExpenses)
+    protected.HandleFunc("/categories", handlers.HandleCategories)
+    protected.HandleFunc("/spending/category", handlers.HandleSpendingByCategory)
 
-	http.HandleFunc("/spending/category", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.GetTotalSpendingForCategory(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+    http.Handle("/", middleware.AuthMiddleware(protected))
 
-	log.Println("Server started on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+    log.Println("Server started on :8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
