@@ -2,16 +2,23 @@ package models
 
 import "time"
 
-// Expense represents a single expense entry
-type Expense struct {
-	ID       int       `json:"id"`
-	Amount   float64   `json:"amount"`
-	Category string    `json:"category"`
-	Date     time.Time `json:"date"`
+type User struct {
+    ID           int    `json:"id"`
+    Email        string `json:"email"`
+    PasswordHash string `json:"-"`
 }
 
-// Category represents a spending category with a monthly budget
+type Expense struct {
+    ID       int       `json:"id"`
+    Amount   float64   `json:"amount"`
+    Category string    `json:"category"`
+    Date     time.Time `json:"date"`
+    UserID   int       `json:"user_id"`
+}
+
 type Category struct {
-	Name   string  `json:"name"`
-	Budget float64 `json:"budget"` // Monthly budget for this category
+    ID     int    `json:"id"`
+    Name   string `json:"name"`
+    Budget float64 `json:"budget"`
+    UserID int    `json:"user_id"`
 }
