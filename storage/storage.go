@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"finance-tracker/models"
+	"log"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -22,15 +23,31 @@ func InitializeDB() error {
 
 // AddUser adds a new user to the database
 func AddUser(user models.User) error {
+	log.Printf("Adding user to database: %s", user.Email)
+
 	_, err := db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", user.Email, user.PasswordHash)
-	return err
+	if err != nil {
+		log.Printf("Failed to add user to database: %v", err)
+		return err
+	}
+
+	log.Printf("User added to database: %s", user.Email)
+	return nil
 }
 
 // GetUserByEmail fetches a user by email
 func GetUserByEmail(email string) (models.User, error) {
+	log.Printf("Fetching user from database: %s", email)
+
 	var user models.User
 	err := db.QueryRow("SELECT id, email, password_hash FROM users WHERE email = ?", email).Scan(&user.ID, &user.Email, &user.PasswordHash)
-	return user, err
+	if err != nil {
+		log.Printf("Failed to fetch user from database: %v", err)
+		return models.User{}, err
+	}
+
+	log.Printf("User fetched from database: %s", user.Email)
+	return user, nil
 }
 
 // AddExpense adds a new expense for a user
@@ -145,4 +162,41 @@ func GetTotalSpendingForCategory(category string, userID int) (float64, error) {
 		return 0, err
 	}
 	return total, nil
+}
+
+//GetMonthlyReport calculates monthly report
+
+func GetMonthlyReport(userID int, month, year string) (map[string]interface{}, error) {
+	query := `
+        SELECT category, SUM(amount) as total
+        FROM expenses
+        WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?
+        GROUP BY category
+    `
+	rows, err := db.Query(query, userID, month, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	report := make(map[string]interface{})
+	var categories []map[string]interface{}
+	var totalSpending float64
+
+	for rows.Next() {
+		var category string
+		var total float64
+		if err := rows.Scan(&category, &total); err != nil {
+			return nil, err
+		}
+		categories = append(categories, map[string]interface{}{
+			"category": category,
+			"total":    total,
+		})
+		totalSpending += total
+	}
+
+	report["total_spending"] = totalSpending
+	report["categories"] = categories
+	return report, nil
 }
