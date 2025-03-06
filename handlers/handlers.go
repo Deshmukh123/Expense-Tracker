@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"finance-tracker/models"
 	"finance-tracker/storage"
+	"log"
 	"net/http"
 )
 
@@ -81,4 +82,39 @@ func HandleSpendingByCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]float64{"total_spent": totalSpent})
+}
+
+//Handles monthly report
+
+func HandleMonthlyReport(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id")
+	if userID == nil {
+		log.Println("user_id is nil in context")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userIDInt, ok := userID.(int)
+	if !ok {
+		log.Println("user_id is not an int")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	month := r.URL.Query().Get("month")
+	year := r.URL.Query().Get("year")
+
+	if month == "" || year == "" {
+		http.Error(w, "month and year parameters are required", http.StatusBadRequest)
+		return
+	}
+
+	report, err := storage.GetMonthlyReport(userIDInt, month, year)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(report)
 }
